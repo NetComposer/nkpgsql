@@ -1,0 +1,12 @@
+{application, nkpgsql, [
+    {description, "NkSERVER PgSQL Package"},
+    {vsn, "develop"},
+    {modules, []},
+    {registered, []},
+    {mod, {nkpgsql_app, []}},
+    {applications, [
+        nkserver
+    ]},
+    {env, [
+    ]}
+]}.

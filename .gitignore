@@ -1,0 +1,9 @@
+/.idea
+/_checkouts
+/_build
+/nkserver_rpc9.version
+/log
+/ebin
+/.rebar3
+/nkpgsql.version
+/rebar.lock

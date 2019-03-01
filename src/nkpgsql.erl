@@ -80,7 +80,7 @@ query(SrvId, Query) ->
     {error, {pgsql_error, pgsql_error()}|term()}.
 
 query(SrvId, Query, QueryMeta) ->
-    Debug = nkserver:get_plugin_config(SrvId, nkpgsql, debug),
+    Debug = nkserver:get_cached_config(SrvId, nkpgsql, debug),
     QueryMeta2 = QueryMeta#{pgsql_debug=>Debug},
     case get_connection(SrvId) of
         {ok, Pid} ->

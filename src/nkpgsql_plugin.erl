@@ -48,22 +48,16 @@ plugin_config(_SrvId, Config, #{class:=?PACKAGE_CLASS_PGSQL}) ->
             pool => {integer, 1, 1000},
             '__mandatory' => [url]
         }},
-        flavour => {atom, [cockroachdb]},
+        flavour => {atom, [postgresql, cockroachdb, yugabyte]},
         database => binary,
         debug => boolean,
         resolve_interval_secs => {integer, 0, none},
         '__mandatory' => [targets],
         '__defaults' => #{
-            flavour => cockroachdb
+            flavour => postgresql
         }
     },
-    case nklib_syntax:parse(Config, Syntax) of
-        {ok, Config2, _} ->
-            {ok, Config2};
-        {error, Error} ->
-            lager:error("NKLOG Config ~p", [Config]),
-            {error, Error}
-    end.
+    nkserver_util:parse_config(Config, Syntax).
 
 
 plugin_cache(_SrvId, Config, _Service) ->

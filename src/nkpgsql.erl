@@ -133,7 +133,7 @@ do_query(Pid, Query, QueryMeta) when is_pid(Pid) ->
         {ok, Ops, PgMeta} ->
             case maps:get(pgsql_debug, QueryMeta, false) of
                 true ->
-                    ?LLOG(notice, "Query: ~s\n~p", [Query, PgMeta]),
+                    ?LLOG(debug, "Query: ~s\n~p", [Query, PgMeta]),
                     ok;
                 _ ->
                     ok
@@ -221,12 +221,25 @@ parse_results(Other, Acc) ->
 
 %% @doc
 get_connection(SrvId) ->
+    get_connection(SrvId, 1000).
+
+
+%% @private
+get_connection(SrvId, Tries) when Tries > 0 ->
     case nkpacket_pool:get_exclusive_pid(SrvId) of
         {ok, Pid, _Meta} ->
             {ok, Pid};
+        {error, max_connections_reached} ->
+            %io:format("MAX CONNECTIONS, RETRYING"),
+            timer:sleep(50),
+            get_connection(SrvId, Tries-1);
         {error, Error} ->
             {error, Error}
-    end.
+    end;
+
+get_connection(_SrvId, _Tries) ->
+    {error, max_connections_reached}.
+
 
 
 %% @doc

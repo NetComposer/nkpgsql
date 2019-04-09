@@ -108,15 +108,9 @@ insert(SrvId, Config, Service) ->
         id => SrvId,
         start => {nkpacket_pool, start_link, [SrvId, PoolConfig]}
     },
-    case nkserver_workers_sup:update_child(SrvId, Spec, #{}) of
-        {added, _} ->
-            ?SRV_LOG(info, "pooler started", [], Service),
-            ok;
-        upgraded ->
-            ?SRV_LOG(info, "pooler upgraded", [], Service),
-            ok;
-        not_updated ->
-            ?SRV_LOG(debug, "pooler didn't upgrade", [], Service),
+    case nkserver_workers_sup:update_child2(SrvId, Spec, #{}) of
+        {Op, Pid} when is_pid(Pid) ->
+            ?SRV_LOG(info, "pooler updated (~p)", [Op], Service),
             ok;
         {error, Error} ->
             ?SRV_LOG(notice, "pooler start/update error: ~p", [Error], Service),

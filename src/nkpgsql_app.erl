@@ -50,8 +50,7 @@ start(_Type, _Args) ->
         {ok, _} ->
             {ok, Pid} = nkpgsql_sup:start_link(),
             {ok, Vsn} = application:get_key(nkserver, vsn),
-            lager:info("NkSERVER RPC9 v~s has started.", [Vsn]),
-            nkserver_util:register_package_class(?PACKAGE_CLASS_PGSQL, nkpgsql),
+            lager:info("NkSERVER NkPGSQL SERVICE v~s has started.", [Vsn]),
             {ok, Pid};
         {error, Error} ->
             lager:error("Error parsing config: ~p", [Error]),

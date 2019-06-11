@@ -7,6 +7,6 @@
 
 
 
--define(PACKAGE_CLASS_PGSQL, <<"PgSQL">>).
+-define(PACKAGE_CLASS_PGSQL, nkpgsql).
 
 -endif.

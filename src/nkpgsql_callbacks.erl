@@ -21,14 +21,19 @@
 %% @doc Default plugin callbacks
 -module(nkpgsql_callbacks).
 -author('Carlos Gonzalez <carlosj.gf@gmail.com>').
+-export([pgsql_init/1]).
 
 -include("nkpgsql.hrl").
 
 
-
-%-define(LLOG(Type, Txt, Args),lager:Type("NkSERVER RPC9 Client "++Txt, Args)).
-
-
 %% ===================================================================
-%% Types
+%% Offered callbacks
 %% ===================================================================
+
+%% @doc Called on plugin initialization
+%% Can be used to set a db schema
+-spec pgsql_init(nkserver:id()) ->
+    ok | {error, nkserver:msg()}.
+
+pgsql_init(_SrvId) ->
+    ok.

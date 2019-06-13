@@ -70,9 +70,20 @@ plugin_cache(_SrvId, Config, _Service) ->
 
 %% @doc
 plugin_start(SrvId, Config, Service) ->
-    insert(SrvId, Config, Service).
+    case insert(SrvId, Config, Service) of
+        ok ->
+            case ?CALL_SRV(SrvId, pgsql_init, [SrvId]) of
+                ok ->
+                    ok;
+                {error, Error} ->
+                    {error, Error}
+            end;
+        {error, Error} ->
+            {error, Error}
+    end.
 
 
+%% @doc
 plugin_stop(SrvId, _Config, _Service) ->
     nkserver_workers_sup:remove_all_childs(SrvId).
 

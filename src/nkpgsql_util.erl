@@ -21,7 +21,7 @@
 -module(nkpgsql_util).
 -author('Carlos Gonzalez <carlosj.gf@gmail.com>').
 
--export([quote_list/1, quote/1, quote_double/1]).
+-export([quote/1]).
 
 %% ===================================================================
 %% Public
@@ -29,16 +29,9 @@
 
 
 
-
 %% @private
-quote_list(List) ->
-    List2 = [quote(F) || F <- List],
-    nklib_util:bjoin(List2, $,).
-
-
-%% @private
-quote(Field) when is_binary(Field) -> [$', to_field(Field), $'];
-quote(Field) when is_list(Field) -> [$', to_field(Field), $'];
+quote(Field) when is_binary(Field) -> <<$', (to_field(Field))/binary, $'>>;
+quote(Field) when is_list(Field) -> <<$', (to_field(Field))/binary, $'>>;
 quote(Field) when is_integer(Field); is_float(Field) -> to_bin(Field);
 quote(true) -> <<"TRUE">>;
 quote(false) -> <<"FALSE">>;
@@ -49,27 +42,10 @@ quote(Field) when is_map(Field) ->
         error ->
             lager:error("Error enconding JSON: ~p", [Field]),
             error(json_encode_error);
-        Json ->
-            [$', to_field(Json), $']
+        Json when is_binary(Json)->
+            quote(Json)
     end.
 
-
-%% @private
-quote_double(Field) when is_binary(Field) -> [$", to_field(Field), $"];
-quote_double(Field) when is_list(Field) -> [$", to_field(Field), $"];
-quote_double(Field) when is_integer(Field); is_float(Field) -> to_bin(Field);
-quote_double(true) -> <<"TRUE">>;
-quote_double(false) -> <<"FALSE">>;
-quote_double(null) -> <<"NULL">>;
-quote_double(Field) when is_atom(Field) -> quote_double(atom_to_binary(Field, utf8));
-quote_double(Field) when is_map(Field) ->
-    case nklib_json:encode(Field) of
-        error ->
-            lager:error("Error enconding JSON: ~p", [Field]),
-            error(json_encode_error);
-        Json ->
-            [$", to_field(Json), $"]
-    end.
 
 to_field(Field) ->
     Field2 = to_bin(Field),

@@ -22,8 +22,10 @@
 -module(nkpgsql_callbacks).
 -author('Carlos Gonzalez <carlosj.gf@gmail.com>').
 -export([pgsql_init/1]).
-
+-export([srv_timed_check/2]).
 -include("nkpgsql.hrl").
+
+-define(CHECK_TIME_SECS, 60).
 
 
 %% ===================================================================
@@ -37,3 +39,31 @@
 
 pgsql_init(_SrvId) ->
     ok.
+
+
+%% ===================================================================
+%% Implemented callbacks
+%% ===================================================================
+
+%% Create database:
+%%  psql -h 127.0.0.1 -p 26257 -U root -d system -c "CREATE DATABASE netcomp_sample;"
+
+
+srv_timed_check(#{id:=SrvId}=Srv, #{nkpgsql_last_check:=Last}=State) ->
+    Now = nklib_date:epoch(secs),
+    case Now - Last > ?CHECK_TIME_SECS of
+        true ->
+            case nkpgsql_util:check_db(SrvId) of
+                ok ->
+                    ok;
+                {error, Error} ->
+                    lager:error("NkPGSQL: Cannot connect to database (~p)", [Error])
+            end,
+            {continue, [Srv, State#{nkpgsql_last_check=>Now}]};
+        false ->
+            continue
+    end;
+
+srv_timed_check(Srv, State) ->
+    Now = nklib_date:epoch(secs),
+    {continue, [Srv, State#{nkpgsql_last_check=>Now}]}.

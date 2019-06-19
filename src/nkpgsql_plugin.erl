@@ -40,7 +40,7 @@ plugin_deps() ->
 
 
 %% @doc
-plugin_config(_SrvId, Config, #{class:=?PACKAGE_CLASS_PGSQL}) ->
+plugin_config(_SrvId, Config, #{class:=nkpgsql}) ->
     Syntax = #{
         targets => {list, #{
             url => binary,
@@ -72,9 +72,10 @@ plugin_cache(_SrvId, Config, _Service) ->
 plugin_start(SrvId, Config, Service) ->
     case insert(SrvId, Config, Service) of
         ok ->
-            case ?CALL_SRV(SrvId, pgsql_init, [SrvId]) of
+            timer:sleep(1000),
+            case wait_for_db(SrvId, 10) of
                 ok ->
-                    ok;
+                    ?CALL_SRV(SrvId, pgsql_init, [SrvId]);
                 {error, Error} ->
                     {error, Error}
             end;
@@ -207,3 +208,16 @@ connect_link(Url, Opts) ->
      end.
 
 
+%% @private
+wait_for_db(SrvId, Tries) when Tries > 0 ->
+    case nkpgsql_util:check_db(SrvId) of
+        ok ->
+            ok;
+        {error, Error } ->
+            lager:notice("NkPGSQL: Error connecting to database (~p): ~p tries left", [Error, Tries]),
+            timer:sleep(1000),
+            wait_for_db(SrvId, Tries-1)
+    end;
+
+wait_for_db(_SrvId, _Tries) ->
+    {error, database_connection}.

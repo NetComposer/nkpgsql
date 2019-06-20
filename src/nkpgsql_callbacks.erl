@@ -25,7 +25,7 @@
 -export([srv_timed_check/2]).
 -include("nkpgsql.hrl").
 
--define(CHECK_TIME_SECS, 60).
+-define(CHECK_TIME_SECS, 300).
 
 
 %% ===================================================================

@@ -35,7 +35,7 @@
 %% @doc Called on plugin initialization
 %% Can be used to set a db schema
 -spec pgsql_init(nkserver:id()) ->
-    ok | {error, nkserver:msg()}.
+    ok | {error, nkserver:status()}.
 
 pgsql_init(_SrvId) ->
     ok.

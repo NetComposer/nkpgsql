@@ -47,7 +47,7 @@
     uniqueness_violation |
     foreign_key_violation |
     no_transaction |
-    relation_unknown |
+    field_unknown |
     syntax_error |
     data_value_invalid |
     pgsql_full_error().
@@ -99,9 +99,7 @@ query(SrvId, Query, QueryMeta) ->
                     % it will abort but we need to rollback to be able to
                     % reuse the connection
                     case QueryMeta2 of
-                        #{auto_rollback:=false} ->
-                            ok;
-                        _ ->
+                        #{auto_rollback:=true} ->
                             case catch do_query(Pid, <<"ROLLBACK;">>, #{pgsql_debug=>Debug}) of
                                 {ok, _, _} ->
                                     ok;
@@ -110,7 +108,9 @@ query(SrvId, Query, QueryMeta) ->
                                 Error ->
                                     ?LLOG(notice, "error performing Rollback: ~p", [Error]),
                                     error(rollback_error)
-                            end
+                            end;
+                        _ ->
+                            ok
                     end,
                     {error, Throw};
                 Class:CError:Trace ->
@@ -128,6 +128,13 @@ query(SrvId, Query, QueryMeta) ->
 
 %% @private
 do_query(Pid, Query, QueryMeta) when is_pid(Pid) ->
+    case maps:get(pgsql_debug, QueryMeta, false) of
+        true ->
+            ?LLOG(debug, "Query1: ~s\n~p", [Query, QueryMeta]),
+            ok;
+        _ ->
+            ok
+    end,
     %?LLOG(info, "PreQuery: ~s", [Query]),
     case do_simple_query(Pid, Query) of
         {ok, Ops, PgMeta} ->
@@ -151,10 +158,10 @@ do_query(Pid, Query, QueryMeta) when is_pid(Pid) ->
         {error, {pgsql_error, #{code := <<"23503">>}}} ->
             throw(foreign_key_violation);
         {error, {pgsql_error, #{code := <<"XX000">>}}=Error} ->
-            ?LLOG(notice, "no_transaction PGSQL error: ~p\n~s", [Error, list_to_binary([Query])]),
+            ?LLOG(info, "no_transaction PGSQL error: ~p\n~s", [Error, list_to_binary([Query])]),
             throw(no_transaction);
         {error, {pgsql_error, #{code := <<"42P01">>}}} ->
-            throw(relation_unknown);
+            throw(field_unknown);
         {error, {pgsql_error, #{code := <<"42601">>}}=Error} ->
             ?LLOG(warning, "syntax PGSQL error: ~p\n~s", [Error, list_to_binary([Query])]),
             throw(syntax_error);

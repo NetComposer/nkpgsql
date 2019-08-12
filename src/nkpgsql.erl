@@ -130,7 +130,7 @@ query(SrvId, Query, QueryMeta) ->
 do_query(Pid, Query, QueryMeta) when is_pid(Pid) ->
     case maps:get(pgsql_debug, QueryMeta, false) of
         true ->
-            ?LLOG(debug, "Query1: ~s\n~p", [Query, QueryMeta]),
+            %?LLOG(debug, "PreQuery: ~s\n~p", [Query, QueryMeta]),
             ok;
         _ ->
             ok
@@ -140,7 +140,7 @@ do_query(Pid, Query, QueryMeta) when is_pid(Pid) ->
         {ok, Ops, PgMeta} ->
             case maps:get(pgsql_debug, QueryMeta, false) of
                 true ->
-                    ?LLOG(debug, "Query: ~s\n~p", [Query, PgMeta]),
+                    ?LLOG(debug, "PostQuery: ~s\n~p", [Query, PgMeta]),
                     ok;
                 _ ->
                     ok

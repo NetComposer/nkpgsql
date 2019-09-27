@@ -62,18 +62,23 @@ to_bin(Term) -> nklib_util:to_binary(Term).
 
 
 %% @private
-check_db(SrvId) ->
-    #{database:=DB} = nkserver:get_config(SrvId),
-    case nkpgsql:query(SrvId, <<"SHOW DATABASES;">>) of
-        {ok, [List], _M} ->
-            case lists:member({DB}, List) of
-                true ->
-                    ok;
-                false ->
-                    {error, database_not_found}
-            end;
-        {error, Error} ->
-            {error, Error}
-    end.
+check_db(_SrvId) ->
+    ok.
+
+
+%%%% @private
+%%check_db(SrvId) ->
+%%    #{database:=DB} = nkserver:get_config(SrvId),
+%%    case nkpgsql:query(SrvId, <<"SHOW DATABASES;">>) of
+%%        {ok, [List], _M} ->
+%%            case lists:member({DB}, List) of
+%%                true ->
+%%                    ok;
+%%                false ->
+%%                    {error, database_not_found}
+%%            end;
+%%        {error, Error} ->
+%%            {error, Error}
+%%    end.
 
 

@@ -157,6 +157,8 @@ do_query(Pid, Query, QueryMeta) when is_pid(Pid) ->
             throw(uniqueness_violation);
         {error, {pgsql_error, #{code := <<"23503">>}}} ->
             throw(foreign_key_violation);
+        {error, {pgsql_error, #{code := <<"23505">>}}} ->
+            throw(duplicated_name);
         {error, {pgsql_error, #{code := <<"XX000">>}}=Error} ->
             ?LLOG(info, "no_transaction PGSQL error: ~p\n~s", [Error, list_to_binary([Query])]),
             throw(no_transaction);

@@ -23,6 +23,8 @@
 
 -export([quote/1, check_db/1]).
 
+-define(MAX_BIN_SIZE, 4*1024*1024).
+
 %% ===================================================================
 %% Public
 %% ===================================================================
@@ -42,8 +44,11 @@ quote(Field) when is_map(Field) ->
         error ->
             lager:error("Error enconding JSON: ~p", [Field]),
             error(json_encode_error);
-        Json when is_binary(Json)->
-            quote(Json)
+        Json when is_binary(Json), byte_size(Json) < ?MAX_BIN_SIZE ->
+            quote(Json);
+        Json when is_binary(Json) ->
+            lager:error("Error enconding JSON: too_lage (~p)", [byte_size(Json)]),
+            error(json_encode_error)
     end.
 
 

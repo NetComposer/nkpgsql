@@ -38,6 +38,7 @@ quote(Field) when is_integer(Field); is_float(Field) -> to_bin(Field);
 quote(true) -> <<"TRUE">>;
 quote(false) -> <<"FALSE">>;
 quote(null) -> <<"NULL">>;
+quote(undefined) -> <<"NULL">>;
 quote(Field) when is_atom(Field) -> quote(atom_to_binary(Field, utf8));
 quote(Field) when is_map(Field) ->
     case nklib_json:encode(Field) of

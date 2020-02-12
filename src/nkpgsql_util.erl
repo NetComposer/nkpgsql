@@ -41,15 +41,15 @@ quote(null) -> <<"NULL">>;
 quote(undefined) -> <<"NULL">>;
 quote(Field) when is_atom(Field) -> quote(atom_to_binary(Field, utf8));
 quote(Field) when is_map(Field) ->
-    case nklib_json:encode(Field) of
-        error ->
-            lager:error("Error enconding JSON: ~p", [Field]),
-            error(json_encode_error);
+    try nklib_json:encode(Field) of
         Json when is_binary(Json), byte_size(Json) < ?MAX_BIN_SIZE ->
             quote(Json);
         Json when is_binary(Json) ->
             lager:error("Error enconding JSON: too_lage (~p)", [byte_size(Json)]),
-            error(json_encode_error)
+            <<"'{}'">>
+    catch _C:_E ->
+        lager:error("Error enconding JSON: ~p", [Field]),
+        <<"'{}'">>
     end.
 
 

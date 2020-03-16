@@ -46,10 +46,11 @@ quote(Field) when is_map(Field) ->
             quote(Json);
         Json when is_binary(Json) ->
             lager:error("Error enconding JSON: too_lage (~p)", [byte_size(Json)]),
-            <<"'{}'">>
+            <<$', (nklib_json:encode(#{json_error => too_large}))/binary, $'>>
     catch _C:_E ->
         lager:error("Error enconding JSON: ~p", [Field]),
-        <<"'{}'">>
+        Field2 = nklib_util:to_binary(Field),
+        <<$', (nklib_json:encode(#{json_error => Field2}))/binary, $'>>
     end.
 
 

@@ -239,14 +239,16 @@ get_connection(SrvId, Tries) when Tries > 0 ->
         {ok, Pid, _Meta} ->
             {ok, Pid};
         {error, max_connections_reached} ->
-            %io:format("MAX CONNECTIONS, RETRYING"),
+            lager:warning("Max connections reached (~p). ~p retries left", [SrvId, Tries]),
             timer:sleep(50),
             get_connection(SrvId, Tries-1);
         {error, Error} ->
+            lager:warning("Error in get_connection (~p): ~p", [SrvId, Error]),
             {error, Error}
     end;
 
 get_connection(_SrvId, _Tries) ->
+    lager:warning("Error in get_connection (~p), no more tries"),
     {error, max_connections_reached}.
 
 

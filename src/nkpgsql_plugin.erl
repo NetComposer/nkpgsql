@@ -125,7 +125,7 @@ insert2(SrvId, #{targets:=[#{url:=Url, pool:=Size}=T]}=Config, Service) ->
         {worker_module, nkpgsql_worker},
         {size, Size},
         {max_overflow, Max},
-        {strategy, lifo}
+        {strategy, fifo}
     ],
     WorkerArgs = {SrvId, Url, Config},
     Spec = #{

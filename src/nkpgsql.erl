@@ -120,12 +120,24 @@ query(SrvId, Query) ->
     {error, {pgsql_error, pgsql_error()}|term()}.
 
 query(SrvId, Query, QueryMeta) ->
+    query(SrvId, Query, QueryMeta, 2).
+
+
+query(SrvId, Query, QueryMeta, Tries) when Tries > 0 ->
     Name = nkpgsql_plugin:get_pool_name(SrvId),
     Fun = fun(Worker) ->
         gen_server:call(Worker, {query, Query, QueryMeta}, infinity)
     end,
     % Timeout is for checkout
-    poolboy:transaction(Name, Fun, infinity).
+    case poolboy:transaction(Name, Fun, infinity) of
+        {ok, Data, Meta} ->
+            {ok, Data, Meta};
+        {error, Error} ->
+            ?LLOG(warning, "PgSQL transaction error: ~p, retrying", [Error]),
+            timer:sleep(100),
+            query(SrvId, Query, QueryMeta, Tries-1)
+    end.
+
 
 %%query(SrvId, Query, QueryMeta) ->
 %%    Debug = nkserver:get_cached_config(SrvId, nkpgsql, debug),

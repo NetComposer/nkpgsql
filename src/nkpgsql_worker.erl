@@ -95,8 +95,8 @@ handle_call({query, Query, Meta}, From, #state{srv=SrvId, pid=Pid}=State) ->
                 nkpgsql:do_query(Pid, Query, QueryMeta)
         end,
         case Result of
-            {ok, Data, Meta} ->
-                {reply, {ok, Data, Meta}, State};
+            {ok, Data, Meta2} ->
+                {reply, {ok, Data, Meta2}, State};
             Other ->
                 lager:error("NKLOG PgSQL Error ~p", [Other]),
                 gen_server:reply(From, {error, Other}),

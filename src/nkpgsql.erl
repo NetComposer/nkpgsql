@@ -23,7 +23,8 @@
 
 -export([query/2, query/3, do_query/3]).
 -export([get_connection/1, release_connection/2, stop_connection/1]).
-
+-export([pool_status/1]).
+-export([t/0]).
 -define(LLOG(Type, Txt, Args), lager:Type("NkPGSQL "++Txt, Args)).
 
 
@@ -65,6 +66,45 @@
 %% API
 %% ===================================================================
 
+
+t() ->
+    t(1),
+    lager:error("NKLOG NEXT"),
+    t2(3),
+    t3(20000),
+    t2(20).
+
+t(N) when N < 10000 ->
+    N2 = nklib_util:lpad(N, 5, $0),
+    Q = <<"SELECT ", N2/binary, ", * From actors">>,
+    spawn_link(
+        fun() -> {ok, _, _} = query(netcomp_rcp_actor_pgsql_srv, Q, #{}) end),
+    t(N+1);
+
+t(_) ->
+    ok.
+
+t2(N) when N > 0 ->
+    lager:error("NKLOG STATUS ~p", [pool_status(netcomp_rcp_actor_pgsql_srv)]),
+    timer:sleep(5000),
+    t2(N-1);
+
+t2(_) ->
+    ok.
+
+t3(N) when N < 30000 ->
+    N2 = nklib_util:lpad(N, 5, $0),
+    Q = <<"SELECT ", N2/binary, ", * From actors">>,
+    spawn_link(
+        fun() -> {ok, _, _} = query(netcomp_rcp_actor_pgsql_srv, Q, #{}) end),
+    t3(N+1);
+
+t3(_) ->
+    ok.
+
+
+
+
 %% @doc Performs a query
 -spec query(nkserver:id(), binary()|query_fun()) ->
     {ok, list(), Meta::map()} |
@@ -80,50 +120,58 @@ query(SrvId, Query) ->
     {error, {pgsql_error, pgsql_error()}|term()}.
 
 query(SrvId, Query, QueryMeta) ->
-    Debug = nkserver:get_cached_config(SrvId, nkpgsql, debug),
-    QueryMeta2 = QueryMeta#{pgsql_debug=>Debug},
-    case get_connection(SrvId) of
-        {ok, Pid} ->
-            try
-                {ok, Data, MetaData}= case is_function(Query, 1) of
-                    true ->
-                        Query(Pid);
-                    false ->
-                        do_query(Pid, Query, QueryMeta2)
-                end,
-                {ok, Data, MetaData}
-            catch
-                throw:Throw ->
-                    % Processing 'user' errors
-                    % If we are on a transaction, and some line fails,
-                    % it will abort but we need to rollback to be able to
-                    % reuse the connection
-                    case QueryMeta2 of
-                        #{auto_rollback:=true} ->
-                            case catch do_query(Pid, <<"ROLLBACK;">>, #{pgsql_debug=>Debug}) of
-                                {ok, _, _} ->
-                                    ok;
-                                no_transaction ->
-                                    ok;
-                                Error ->
-                                    ?LLOG(notice, "error performing Rollback: ~p", [Error]),
-                                    error(rollback_error)
-                            end;
-                        _ ->
-                            ok
-                    end,
-                    {error, Throw};
-                Class:CError:Trace ->
-                    % For other errors, we better close the connection
-                    ?LLOG(warning, "error in query: ~p, ~p, ~p", [Class, CError, Trace]),
-                    nkpgsql:stop_connection(Pid),
-                    {error, internal_error}
-            after
-                release_connection(SrvId, Pid)
-            end;
-        {error, Error} ->
-            {error, Error}
-    end.
+    Name = nkpgsql_plugin:get_pool_name(SrvId),
+    Fun = fun(Worker) ->
+        gen_server:call(Worker, {query, Query, QueryMeta}, infinity)
+    end,
+    % Timeout is for checkout
+    poolboy:transaction(Name, Fun, infinity).
+
+%%query(SrvId, Query, QueryMeta) ->
+%%    Debug = nkserver:get_cached_config(SrvId, nkpgsql, debug),
+%%    QueryMeta2 = QueryMeta#{pgsql_debug=>Debug},
+%%    case get_connection(SrvId) of
+%%        {ok, Pid} ->
+%%            try
+%%                {ok, Data, MetaData}= case is_function(Query, 1) of
+%%                    true ->
+%%                        Query(Pid);
+%%                    false ->
+%%                        do_query(Pid, Query, QueryMeta2)
+%%                end,
+%%                {ok, Data, MetaData}
+%%            catch
+%%                throw:Throw ->
+%%                    % Processing 'user' errors
+%%                    % If we are on a transaction, and some line fails,
+%%                    % it will abort but we need to rollback to be able to
+%%                    % reuse the connection
+%%                    case QueryMeta2 of
+%%                        #{auto_rollback:=true} ->
+%%                            case catch do_query(Pid, <<"ROLLBACK;">>, #{pgsql_debug=>Debug}) of
+%%                                {ok, _, _} ->
+%%                                    ok;
+%%                                no_transaction ->
+%%                                    ok;
+%%                                Error ->
+%%                                    ?LLOG(notice, "error performing Rollback: ~p", [Error]),
+%%                                    error(rollback_error)
+%%                            end;
+%%                        _ ->
+%%                            ok
+%%                    end,SELEC
+%%                    {error, Throw};
+%%                Class:CError:Trace ->
+%%                    % For other errors, we better close the connection
+%%                    ?LLOG(warning, "error in query: ~p, ~p, ~p", [Class, CError, Trace]),
+%%                    nkpgsql:stop_connection(Pid),
+%%                    {error, internal_error}
+%%            after
+%%                release_connection(SrvId, Pid)
+%%            end;
+%%        {error, Error} ->
+%%            {error, Error}
+%%    end.
 
 
 %% @private
@@ -228,6 +276,9 @@ parse_results(Other, Acc) ->
 
 
 
+
+
+
 %% @doc
 get_connection(SrvId) ->
     get_connection(SrvId, 1000).
@@ -261,6 +312,12 @@ release_connection(SrvId, Pid) ->
 %% @doc
 stop_connection(Pid) ->
     nkpgsql_plugin:conn_stop(Pid).
+
+pool_status(SrvId) ->
+    Name = nkpgsql_plugin:get_pool_name(SrvId),
+    Status = poolboy:status(Name),
+    Queue = element(4, sys:get_state(Name)),
+    {Status, queue:len(Queue)}.
 
 
 

@@ -83,18 +83,25 @@ init({SrvId, Url, Config}) ->
             {error, {cannot_resolve, Url}}
     end.
 
-handle_call({query, Query, Meta}, _From, #state{srv=SrvId, pid=Pid}=State) ->
+handle_call({query, Query, Meta}, From, #state{srv=SrvId, pid=Pid}=State) ->
     Debug = nkserver:get_cached_config(SrvId, nkpgsql, debug),
     QueryMeta = Meta#{pgsql_debug=>Debug},
     try
-        {ok, Data, MetaData}= case is_function(Query, 1) of
+        Result = case is_function(Query, 1) of
             true ->
                 Query(Pid);
             false ->
                 %io:format("NKLOG LAUNCH QUERY: ~s\n", [Query]),
                 nkpgsql:do_query(Pid, Query, QueryMeta)
         end,
-        {reply, {ok, Data, MetaData}, State}
+        case Result of
+            {ok, Data, Meta} ->
+                {reply, {ok, Data, Meta}, State};
+            Other ->
+                lager:error("NKLOG PgSQL Error ~p", [Other]),
+                gen_server:reply(From, {error, Other}),
+                error(Other)
+        end
     catch
         throw:Throw ->
             % Processing 'user' errors

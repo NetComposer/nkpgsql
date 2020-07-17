@@ -91,16 +91,14 @@ handle_call({query, Query, Meta}, From, #state{srv=SrvId, pid=Pid}=State) ->
             true ->
                 Query(Pid);
             false ->
-                %io:format("NKLOG LAUNCH QUERY: ~s\n", [Query]),
+                %io:format("NKLOG LAUNCH QUERY (~p): ~s\n", [Pid, Query]),
                 nkpgsql:do_query(Pid, Query, QueryMeta)
         end,
         case Result of
             {ok, Data, Meta2} ->
                 {reply, {ok, Data, Meta2}, State};
-            Other ->
-                lager:error("NKLOG PgSQL Error1 ~p", [Other]),
-                gen_server:reply(From, {error, Other}),
-                {stop, Other, State}
+            {error, QueryError} ->
+                throw(QueryError)
         end
     catch
         throw:Throw ->
@@ -108,9 +106,10 @@ handle_call({query, Query, Meta}, From, #state{srv=SrvId, pid=Pid}=State) ->
             % If we are on a transaction, and some line fails,
             % it will abort but we need to rollback to be able to
             % reuse the connection
-            ?LLOG(notice, "transaction rollback: ~p", [Throw]),
+            ?LLOG(notice, "query error: ~p (conn:~p)", [Throw, Pid]),
             gen_server:reply(From, {error, Throw}),
-            case Query of
+            % Try to recover connection, or stop it if not possible
+            case Meta of
                 #{auto_rollback:=true} ->
                     case catch nkpgsql:do_query(Pid, <<"ROLLBACK;">>, #{pgsql_debug=>Debug}) of
                         {ok, _, _} ->
@@ -122,7 +121,7 @@ handle_call({query, Query, Meta}, From, #state{srv=SrvId, pid=Pid}=State) ->
                             {stop, rollback_error, State}
                     end;
                 _ ->
-                    {stop, no_rollback, State}
+                    {stop, no_auto_rollback, State}
             end;
         C:E ->
             lager:error("NKLOG PgSQL Exception ~p:~p", [C, E]),

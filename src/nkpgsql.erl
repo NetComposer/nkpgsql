@@ -24,7 +24,7 @@
 -export([query/2, query/3, do_query/3]).
 -export([get_connection/1, release_connection/2, stop_connection/1]).
 -export([pool_status/1]).
--export([t/0]).
+-export([t1/0, t2/0]).
 -define(LLOG(Type, Txt, Args), lager:Type("NkPGSQL "++Txt, Args)).
 
 
@@ -67,41 +67,56 @@
 %% ===================================================================
 
 
-t() ->
-    t(1),
-    lager:error("NKLOG NEXT"),
-    t2(3),
-    t3(20000),
-    t2(20).
+%%t() ->
+%%    t(1),
+%%    lager:error("NKLOG NEXT"),
+%%    t2(3),
+%%    t3(20000),
+%%    t2(20).
+%%
+%%t(N) when N < 10000 ->
+%%    N2 = nklib_util:lpad(N, 5, $0),
+%%    Q = <<"SELECT ", N2/binary, ", * From actors">>,
+%%    spawn_link(
+%%        fun() -> {ok, _, _} = query(netcomp_rcp_actor_pgsql_srv, Q, #{}) end),
+%%    t(N+1);
+%%
+%%t(_) ->
+%%    ok.
+%%
+%%t2(N) when N > 0 ->
+%%    lager:error("NKLOG STATUS ~p", [pool_status(netcomp_rcp_actor_pgsql_srv)]),
+%%    timer:sleep(5000),
+%%    t2(N-1);
+%%
+%%t2(_) ->
+%%    ok.
+%%
+%%t3(N) when N < 30000 ->
+%%    N2 = nklib_util:lpad(N, 5, $0),
+%%    Q = <<"SELECT ", N2/binary, ", * From actors">>,
+%%    spawn_link(
+%%        fun() -> {ok, _, _} = query(netcomp_rcp_actor_pgsql_srv, Q, #{}) end),
+%%    t3(N+1);
+%%
+%%t3(_) ->
+%%    ok.
 
-t(N) when N < 10000 ->
-    N2 = nklib_util:lpad(N, 5, $0),
-    Q = <<"SELECT ", N2/binary, ", * From actors">>,
-    spawn_link(
-        fun() -> {ok, _, _} = query(netcomp_rcp_actor_pgsql_srv, Q, #{}) end),
-    t(N+1);
 
-t(_) ->
-    ok.
+t1() ->
+    Q = <<"
+        BEGIN;
+        SELECT abc;
+        COMMIT;
+    ">>,
+    query(netcomp_rcp_actor_pgsql_srv, Q, #{auto_rollback => true}).
 
-t2(N) when N > 0 ->
-    lager:error("NKLOG STATUS ~p", [pool_status(netcomp_rcp_actor_pgsql_srv)]),
-    timer:sleep(5000),
-    t2(N-1);
 
-t2(_) ->
-    ok.
-
-t3(N) when N < 30000 ->
-    N2 = nklib_util:lpad(N, 5, $0),
-    Q = <<"SELECT ", N2/binary, ", * From actors">>,
-    spawn_link(
-        fun() -> {ok, _, _} = query(netcomp_rcp_actor_pgsql_srv, Q, #{}) end),
-    t3(N+1);
-
-t3(_) ->
-    ok.
-
+t2() ->
+    Q = <<"
+        SELECT 1;
+    ">>,
+    query(netcomp_rcp_actor_pgsql_srv, Q, #{auto_rollback => true}).
 
 
 
@@ -123,7 +138,7 @@ query(SrvId, Query, QueryMeta) ->
     query(SrvId, Query, QueryMeta, 2).
 
 
-query(SrvId, Query, QueryMeta, Tries) when Tries > 0 ->
+query(SrvId, Query, QueryMeta, Tries) ->
     Name = nkpgsql_plugin:get_pool_name(SrvId),
     Fun = fun(Worker) ->
         gen_server:call(Worker, {query, Query, QueryMeta}, infinity)
@@ -132,10 +147,13 @@ query(SrvId, Query, QueryMeta, Tries) when Tries > 0 ->
     case poolboy:transaction(Name, Fun, infinity) of
         {ok, Data, Meta} ->
             {ok, Data, Meta};
-        {error, Error} ->
+        {error, Error} when Tries >= 1 ->
             ?LLOG(warning, "PgSQL transaction error: ~p, retrying", [Error]),
             timer:sleep(100),
-            query(SrvId, Query, QueryMeta, Tries-1)
+            query(SrvId, Query, QueryMeta, Tries-1);
+        {error, Error} ->
+            ?LLOG(warning, "PgSQL transaction error: ~p, no more retrying", [Error]),
+            {error, Error}
     end.
 
 

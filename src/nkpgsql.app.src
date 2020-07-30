@@ -1,10 +1,11 @@
 {application, nkpgsql, [
     {description, "NkSERVER PgSQL Package"},
-    {vsn, "develop"},
+    {vsn, "0.1.0"},
     {modules, []},
     {registered, []},
     {mod, {nkpgsql_app, []}},
     {applications, [
+        poolboy,
         nkserver
     ]},
     {env, [

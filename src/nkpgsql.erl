@@ -147,6 +147,8 @@ query(SrvId, Query, QueryMeta, Tries) ->
     case poolboy:transaction(Name, Fun, infinity) of
         {ok, Data, Meta} ->
             {ok, Data, Meta};
+        {error, Error} when Error==duplicated_name ->
+            {error, Error};
         {error, Error} when Tries >= 1 ->
             ?LLOG(warning, "PgSQL transaction error: ~p, retrying", [Error]),
             timer:sleep(100),

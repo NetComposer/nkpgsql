@@ -67,7 +67,7 @@ init({SrvId, Url, Config}) ->
                     _ -> []
                 end
             ]),
-            ?LLOG(notice, "Worker started (~p)", [PgOpts]),
+            ?LLOG(debug, "Worker started (~p)", [PgOpts]),
             case gen_server:start_link(pgsql_connection, PgOpts, [])  of
                 {ok, Pid} ->
                     monitor(process, Pid),

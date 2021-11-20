@@ -47,7 +47,7 @@ plugin_config(_SrvId, Config, #{class:=nkpgsql}) ->
             url => binary,
             weight => {integer, 1, 1000},
             pool => {integer, 1, 1000},
-            max_exclusive => {integer, 1, 1000},
+            max_exclusive => {integer, 0, 1000},
             '__mandatory' => [url]
         }},
         flavour => {atom, [postgresql, cockroachdb, yugabyte]},
